@@ -21,54 +21,100 @@ pip install -e ".[dev]"
 
 ## Usage
 
-### CLI
+### CLI — auto-detect from a project directory
 
 ```bash
-# Judge a single config (YAML or JSON)
+# Claude Code project
 export ANTHROPIC_API_KEY=sk-...
+mh-judge judge /path/to/claude-code-project
+
+# Codex project
+export OPENAI_API_KEY=sk-...
+mh-judge judge /path/to/codex-project --model openai:gpt-4o-mini
+
+# OpenCode project
+mh-judge judge /path/to/opencode-project --model google-gla:gemini-2.0-flash
+
+# Any .agents/ directory
+mh-judge judge /path/to/project-with-agents-dir
+
+# Manual config file (YAML or JSON)
 mh-judge judge path/to/agent-config.yaml
 
+# List available loaders
+mh-judge loaders
+
 # Run the pydantic-evals suite
-export LOGFIRE_TOKEN=...
+export LOGFIRE_TOKEN=...   # optional
 mh-judge eval
 ```
+
+### Provider support
+
+The judge uses pydantic-ai and works with any supported provider:
+
+| Provider | Model string example |
+|----------|---------------------|
+| Anthropic | `anthropic:claude-haiku-4-5-20251001` |
+| OpenAI | `openai:gpt-4o-mini` |
+| Google | `google-gla:gemini-2.0-flash` |
+| Mistral | `mistral:mistral-small-latest` |
+| Groq | `groq:llama-3.3-70b-versatile` |
+
+Per-component analysis uses the `--model` (default: Haiku).
+Synthesis uses a Sonnet-class model auto-matched to the same provider.
 
 ### Python
 
 ```python
 from magnifica_humanitas import judge, AgentConfig
+from magnifica_humanitas.loaders import load
+from pathlib import Path
 
+# Auto-load from a project directory
+config = load(Path("/path/to/project"))
+
+# Or construct manually
 config = AgentConfig(
     system_prompt="You are a pair-programming assistant...",
     mcps=[{"name": "github-read", "permissions": "read"}],
 )
-output = judge(config)
 
-print(output.overall_paradigm)          # "Nehemiah", "Mixed", or "Babel"
-print(output.dimension_scores["human_primacy"].score)  # 1–5
+# Judge with any provider
+output = judge(config, model="openai:gpt-4o-mini")
+
+print(output.overall_paradigm)                              # Nehemiah / Mixed / Babel
+print(output.dimension_scores["human_primacy"].score)       # 1–5
 ```
 
-### Claude Code Skill
+### Supported frameworks
 
-In a Claude Code session, invoke `/magnifica-judge` and paste the configuration
-when prompted.
+| Framework | Detection | Key autonomy signal |
+|-----------|-----------|---------------------|
+| Claude Code | `.claude/` directory | `permissions.defaultMode` (`bypassPermissions` → Babel) |
+| Codex CLI | `AGENTS.md` / `.codex/config.toml` | `approval_policy` (`never` → Babel, `untrusted` → Nehemiah) |
+| OpenCode | `opencode.json` | `permission` rules (`allow` globally → Babel signal) |
+| agents-folder | `.agents/manifest.yaml` | `modes/` autonomy + `policies/` deny rules |
 
-## Config format
+### Manual config format
 
 ```yaml
 system_prompt: |
-  You are an agent. Your job is...
+  You are an agent...
 
 mcps:
   - name: github-read
     permissions: read
     tools: [get_file_contents, list_pull_requests]
     confirmation_required: false
+    confession:
+      acknowledgment: "This MCP has broader access than needed."
+      justification: "Refactoring is tracked in issue #42."
 
 skills:
   - name: code-review
     content: |
-      When reviewing code, raise only findings you are confident about...
+      Raise only findings you are confident about...
 
 subagents:
   - name: test-runner
@@ -76,8 +122,6 @@ subagents:
     allowed_tools: [run_tests]
     can_modify_files: false
 ```
-
-Pass `raw_config` as a string if the config doesn't fit the structured fields.
 
 ## Evaluation suite
 

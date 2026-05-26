@@ -488,6 +488,61 @@ pre code { background: none; border: none; padding: 0; font-size: 0.85rem; }
 .code-block pre { padding: 0.75rem 1rem 1rem; overflow-x: auto; }
 .code-block code { background: none; border: none; color: var(--dark-text); font-size: 0.85rem; line-height: 1.7; }
 
+/* ─── Frameworks table ────────────────────────────────────── */
+
+.frameworks-table { margin-bottom: 2.5rem; }
+
+.frameworks-table h3 {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-faint);
+  margin-bottom: 0.75rem;
+}
+
+.fw-grid {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.fw-row {
+  display: grid;
+  grid-template-columns: 140px 230px 1fr;
+  gap: 1rem;
+  padding: 0.65rem 1rem;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.fw-row:last-child { border-bottom: none; }
+.fw-row:nth-child(even) { background: var(--cream-mid); }
+
+.fw-header {
+  background: var(--ink) !important;
+  color: var(--cream);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.fw-header code { background: transparent; border: none; color: #a09888; }
+.fw-row code { font-size: 0.8rem; }
+
+.fw-note {
+  font-size: 0.85rem;
+  color: var(--ink-faint);
+  margin-top: 0.75rem;
+  font-style: italic;
+}
+
+@media (max-width: 700px) {
+  .fw-row { grid-template-columns: 1fr; gap: 0.25rem; }
+  .fw-header { display: none; }
+}
+
 .confession-yaml-snippet h3 {
   font-family: var(--font-sans);
   font-size: 0.8rem;

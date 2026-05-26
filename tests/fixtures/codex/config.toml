@@ -1,0 +1,33 @@
+# ~/.codex/config.toml — Codex CLI user configuration
+model = "o4-mini"
+model_provider = "openai"
+default_permissions = ":workspace"
+
+# approval_policy controls autonomy level:
+#   "never"      — fully autonomous, never asks for approval (Babel indicator)
+#   "on-request" — agent can request more permissions interactively
+#   "untrusted"  — treat every action as untrusted, ask before each one
+approval_policy = "on-request"
+
+approvals_reviewer = "user"
+
+[model_providers.openai]
+base_url = "https://api.openai.com/v1"
+
+[permissions.workspace]
+filesystem = { "/workspace" = "read", "/workspace/src" = "write", "/tmp" = "write" }
+
+[permissions.workspace.network]
+allowed_domains = ["github.com", "api.github.com", "pypi.org"]
+
+[mcp_servers.github]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github"]
+default_tools_approval_mode = "prompt"
+
+[mcp_servers.github.tools.delete_repository]
+approval_mode = "prompt"
+
+[features]
+enable_subagents = true
+enable_sandboxing = true

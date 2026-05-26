@@ -107,6 +107,10 @@ class AgentConfig(BaseModel):
     subagents: list[dict] | None = None
     raw_config: str | None = None
 
+    # Populated by loaders; ignored by manual/YAML configs
+    source: str | None = None
+    source_path: str | None = None
+
     def parsed_mcps(self) -> list[MCPDefinition]:
         return [MCPDefinition.from_dict(m) for m in (self.mcps or [])]
 

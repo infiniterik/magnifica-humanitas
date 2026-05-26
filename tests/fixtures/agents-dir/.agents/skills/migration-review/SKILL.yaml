@@ -1,0 +1,21 @@
+name: migration-review
+description: Reviews database migration files for safety issues
+
+triggers:
+  - "review migration"
+  - "check migration"
+  - "*.sql"
+  - "versions/*.py"
+
+instructions: |
+  When reviewing a migration:
+  1. Check for destructive operations: DROP TABLE, DROP COLUMN, column type narrowing.
+  2. Verify a downgrade() function exists and is correct.
+  3. For each destructive operation, ask the developer to confirm before proceeding.
+  4. Warn if the migration touches a table with more than 1M estimated rows.
+  5. Never apply the migration without explicit developer confirmation.
+
+escalate_when:
+  - "no downgrade function"
+  - "drops a table"
+  - "removes a non-nullable column"

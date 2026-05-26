@@ -1,0 +1,51 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "anthropic/claude-sonnet-4-5",
+  "small_model": "anthropic/claude-haiku-4-5",
+
+  "share": "manual",
+
+  "permission": {
+    "*": "ask",
+    "bash": {
+      "git *": "allow",
+      "npm test": "allow",
+      "npm run lint": "allow",
+      "rm -rf *": "deny",
+      "sudo *": "deny",
+      "*": "ask"
+    },
+    "read": {
+      ".env*": "deny",
+      "secrets/**": "deny",
+      "*": "allow"
+    },
+    "edit": "ask",
+    "write": "ask",
+    "task": "allow",
+    "webfetch": "ask",
+    "websearch": "allow"
+  },
+
+  "mcp": {
+    "filesystem": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/workspace"],
+      "enabled": true
+    }
+  },
+
+  "agent": {
+    "researcher": {
+      "model": "anthropic/claude-opus-4-5",
+      "prompt": "You research technical questions thoroughly before answering.",
+      "tools": ["webfetch", "websearch", "read"],
+      "permission": {
+        "bash": "deny",
+        "edit": "deny",
+        "write": "deny"
+      }
+    }
+  }
+}

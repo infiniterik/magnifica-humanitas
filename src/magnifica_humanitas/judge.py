@@ -5,17 +5,23 @@ Pipeline:
   2. analyze_* (parallel)    — one call per component type
   3. synthesize              — aggregates component analyses → JudgeOutput
 
-Each stage loads its own focused system prompt so smaller models can handle it.
+Uses pydantic-ai for provider-agnostic LLM calls. Model strings:
+  "anthropic:claude-haiku-4-5-20251001"
+  "openai:gpt-4o-mini"
+  "google-gla:gemini-2.0-flash"
+  "mistral:mistral-small-latest"
+
+Per-component analyses default to a fast/cheap model; synthesis defaults to a
+stronger model. Both can be overridden.
 """
 from __future__ import annotations
 
 import asyncio
-import json
 from pathlib import Path
 from typing import Any
 
-import anthropic
 import logfire
+from pydantic_ai import Agent
 
 from .models import (
     AgentConfig,
@@ -35,7 +41,6 @@ _PROMPTS_DIR = (
     / "prompts"
 )
 
-# Prompt cache — loaded once per process
 _PROMPT_CACHE: dict[str, str] = {}
 
 
@@ -45,53 +50,18 @@ def _prompt(name: str) -> str:
     return _PROMPT_CACHE[name]
 
 
-def _parse(raw: str, model_cls: type) -> Any:
-    """Strip optional markdown fences and validate against a Pydantic model."""
-    text = raw.strip()
-    if text.startswith("```"):
-        lines = text.splitlines()
-        text = "\n".join(l for l in lines if not l.startswith("```")).strip()
-    return model_cls.model_validate(json.loads(text))
+def _make_agent(system_prompt: str, result_type: type) -> Agent:
+    """Create a pydantic-ai Agent with no model pre-bound (model passed at run time)."""
+    return Agent(system_prompt=system_prompt, result_type=result_type)
 
 
-def _call(
-    client: anthropic.Anthropic,
-    model: str,
-    system: str,
-    user: str,
-    max_tokens: int = 1024,
-) -> str:
-    response = client.messages.create(
-        model=model,
-        max_tokens=max_tokens,
-        system=system,
-        messages=[{"role": "user", "content": user}],
-    )
-    return response.content[0].text
-
-
-# ─── Stage 1: Context ────────────────────────────────────────────────────────
-
-
-@logfire.instrument("assess_context")
-def assess_context(
-    config: AgentConfig,
-    client: anthropic.Anthropic,
-    model: str,
-) -> ContextAssessment:
-    raw = _call(
-        client,
-        model,
-        _prompt("context_assessment"),
-        f"Assess the operational context of this configuration:\n\n{config.to_text()}",
-        max_tokens=512,
-    )
-    result = _parse(raw, ContextAssessment)
-    logfire.info("context_assessed", blast_radius=result.blast_radius, scale=result.inferred_scale)
-    return result
-
-
-# ─── Stage 2: Per-component analyses (run in parallel) ───────────────────────
+# Stage agents — created once at module import, model injected at run time
+_CTX_AGENT = _make_agent(_prompt("context_assessment"), ContextAssessment)
+_SP_AGENT  = _make_agent(_prompt("system_prompt"),      ComponentAnalysis)
+_MCP_AGENT = _make_agent(_prompt("mcp"),                ComponentAnalysis)
+_SKL_AGENT = _make_agent(_prompt("skill"),              ComponentAnalysis)
+_SUB_AGENT = _make_agent(_prompt("subagent"),           ComponentAnalysis)
+_SYN_AGENT = _make_agent(_prompt("synthesis"),          JudgeOutput)
 
 
 def _context_header(ctx: ContextAssessment) -> str:
@@ -101,177 +71,155 @@ def _context_header(ctx: ContextAssessment) -> str:
     )
 
 
-@logfire.instrument("analyze_system_prompt")
-def analyze_system_prompt(
-    system_prompt: str,
-    ctx: ContextAssessment,
-    client: anthropic.Anthropic,
-    model: str,
-) -> ComponentAnalysis:
-    user = (
-        f"{_context_header(ctx)}\n\n"
-        f"Analyze this system prompt:\n\n---\n{system_prompt}\n---"
+# ─── Stage 1 ─────────────────────────────────────────────────────────────────
+
+
+@logfire.instrument("assess_context")
+async def _assess_context(
+    config: AgentConfig, model: str
+) -> ContextAssessment:
+    result = await _CTX_AGENT.run(
+        f"Assess the operational context:\n\n{config.to_text()}",
+        model=model,
     )
-    raw = _call(client, model, _prompt("system_prompt"), user, max_tokens=1024)
-    return _parse(raw, ComponentAnalysis)
+    ctx = result.data
+    logfire.info("context_assessed", blast_radius=ctx.blast_radius, scale=ctx.inferred_scale)
+    return ctx
+
+
+# ─── Stage 2 ─────────────────────────────────────────────────────────────────
+
+
+@logfire.instrument("analyze_system_prompt")
+async def _analyze_system_prompt(
+    system_prompt: str, ctx: ContextAssessment, model: str
+) -> ComponentAnalysis:
+    result = await _SP_AGENT.run(
+        f"{_context_header(ctx)}\n\nAnalyze this system prompt:\n\n---\n{system_prompt}\n---",
+        model=model,
+    )
+    return result.data
 
 
 @logfire.instrument("analyze_mcp")
-def analyze_mcp(
-    mcp: MCPDefinition,
-    ctx: ContextAssessment,
-    client: anthropic.Anthropic,
-    model: str,
+async def _analyze_mcp(
+    mcp: MCPDefinition, ctx: ContextAssessment, model: str
 ) -> ComponentAnalysis:
-    user = (
-        f"{_context_header(ctx)}\n\n"
-        f"Analyze this MCP:\n\n{mcp.model_dump_json(indent=2)}"
+    result = await _MCP_AGENT.run(
+        f"{_context_header(ctx)}\n\nAnalyze this MCP:\n\n{mcp.model_dump_json(indent=2)}",
+        model=model,
     )
-    raw = _call(client, model, _prompt("mcp"), user, max_tokens=768)
-    return _parse(raw, ComponentAnalysis)
+    return result.data
 
 
 @logfire.instrument("analyze_skill")
-def analyze_skill(
-    skill: SkillDefinition,
-    ctx: ContextAssessment,
-    client: anthropic.Anthropic,
-    model: str,
+async def _analyze_skill(
+    skill: SkillDefinition, ctx: ContextAssessment, model: str
 ) -> ComponentAnalysis:
-    user = (
-        f"{_context_header(ctx)}\n\n"
-        f"Analyze this skill:\n\n{skill.model_dump_json(indent=2)}"
+    result = await _SKL_AGENT.run(
+        f"{_context_header(ctx)}\n\nAnalyze this skill:\n\n{skill.model_dump_json(indent=2)}",
+        model=model,
     )
-    raw = _call(client, model, _prompt("skill"), user, max_tokens=768)
-    return _parse(raw, ComponentAnalysis)
+    return result.data
 
 
 @logfire.instrument("analyze_subagent")
-def analyze_subagent(
-    subagent: SubagentDefinition,
-    ctx: ContextAssessment,
-    client: anthropic.Anthropic,
-    model: str,
+async def _analyze_subagent(
+    subagent: SubagentDefinition, ctx: ContextAssessment, model: str
 ) -> ComponentAnalysis:
-    user = (
-        f"{_context_header(ctx)}\n\n"
-        f"Analyze this subagent:\n\n{subagent.model_dump_json(indent=2)}"
+    result = await _SUB_AGENT.run(
+        f"{_context_header(ctx)}\n\nAnalyze this subagent:\n\n{subagent.model_dump_json(indent=2)}",
+        model=model,
     )
-    raw = _call(client, model, _prompt("subagent"), user, max_tokens=768)
-    return _parse(raw, ComponentAnalysis)
-
-
-# ─── Stage 3: Synthesis ───────────────────────────────────────────────────────
-
-
-@logfire.instrument("synthesize")
-def synthesize(
-    ctx: ContextAssessment,
-    analyses: list[ComponentAnalysis],
-    client: anthropic.Anthropic,
-    model: str,
-) -> JudgeOutput:
-    analyses_json = json.dumps(
-        [a.model_dump() for a in analyses], indent=2
-    )
-    user = (
-        f"Context assessment:\n{ctx.model_dump_json(indent=2)}\n\n"
-        f"Component analyses:\n{analyses_json}"
-    )
-    raw = _call(client, model, _prompt("synthesis"), user, max_tokens=2048)
-    result = _parse(raw, JudgeOutput)
-    logfire.info(
-        "synthesis_complete",
-        paradigm=result.overall_paradigm,
-        confessions=len(result.confessions),
-        high_recs=sum(1 for r in result.recommendations if r.priority == "high"),
-    )
-    return result
-
-
-# ─── Async helpers for parallel component analysis ────────────────────────────
+    return result.data
 
 
 async def _run_parallel(
-    config: AgentConfig,
-    ctx: ContextAssessment,
-    client: anthropic.Anthropic,
-    model: str,
+    config: AgentConfig, ctx: ContextAssessment, model: str
 ) -> list[ComponentAnalysis]:
-    """Run all per-component analyses concurrently using a thread pool."""
-    loop = asyncio.get_event_loop()
-
-    tasks: list[asyncio.Future] = []
+    """Dispatch all per-component analyses concurrently."""
+    tasks: list[Any] = []
 
     if config.system_prompt:
-        tasks.append(
-            loop.run_in_executor(
-                None, analyze_system_prompt, config.system_prompt, ctx, client, model
-            )
-        )
+        tasks.append(_analyze_system_prompt(config.system_prompt, ctx, model))
 
     for mcp in config.parsed_mcps():
-        tasks.append(loop.run_in_executor(None, analyze_mcp, mcp, ctx, client, model))
+        tasks.append(_analyze_mcp(mcp, ctx, model))
 
     for skill in config.parsed_skills():
-        tasks.append(loop.run_in_executor(None, analyze_skill, skill, ctx, client, model))
+        tasks.append(_analyze_skill(skill, ctx, model))
 
     for subagent in config.parsed_subagents():
-        tasks.append(
-            loop.run_in_executor(None, analyze_subagent, subagent, ctx, client, model)
-        )
+        tasks.append(_analyze_subagent(subagent, ctx, model))
 
     return list(await asyncio.gather(*tasks))
 
 
-# ─── Public entrypoints ───────────────────────────────────────────────────────
+# ─── Stage 3 ─────────────────────────────────────────────────────────────────
 
 
-@logfire.instrument("judge", extract_args=True)
-def judge(
-    config: AgentConfig,
-    *,
-    model: str = "claude-haiku-4-5-20251001",
-    synthesis_model: str | None = None,
-    client: anthropic.Anthropic | None = None,
+@logfire.instrument("synthesize")
+async def _synthesize(
+    ctx: ContextAssessment,
+    analyses: list[ComponentAnalysis],
+    model: str,
 ) -> JudgeOutput:
-    """Synchronous multi-stage judge.
+    import json
+    analyses_json = json.dumps([a.model_dump() for a in analyses], indent=2)
+    user_msg = (
+        f"Context assessment:\n{ctx.model_dump_json(indent=2)}\n\n"
+        f"Component analyses:\n{analyses_json}"
+    )
+    result = await _SYN_AGENT.run(user_msg, model=model)
+    output = result.data
+    logfire.info(
+        "synthesis_complete",
+        paradigm=output.overall_paradigm,
+        confessions=len(output.confessions),
+        high_recs=sum(1 for r in output.recommendations if r.priority == "high"),
+        source=getattr(ctx, "_source", None),
+    )
+    return output
 
-    Component analyses run on the component_model (defaults to Haiku for speed/cost).
-    Synthesis runs on synthesis_model (defaults to Sonnet for reasoning depth).
 
-    Args:
-        config: The agent configuration to evaluate.
-        model: Model for context assessment and per-component analysis.
-        synthesis_model: Model for final synthesis. Defaults to claude-sonnet-4-6.
-        client: Optional pre-configured Anthropic client.
-    """
-    if client is None:
-        client = anthropic.Anthropic()
-    if synthesis_model is None:
-        synthesis_model = "claude-sonnet-4-6"
-
-    ctx = assess_context(config, client, model)
-    analyses = asyncio.run(_run_parallel(config, ctx, client, model))
-    return synthesize(ctx, analyses, client, synthesis_model)
+# ─── Public API ──────────────────────────────────────────────────────────────
 
 
 async def judge_async(
     config: AgentConfig,
     *,
-    model: str = "claude-haiku-4-5-20251001",
+    model: str = "anthropic:claude-haiku-4-5-20251001",
     synthesis_model: str | None = None,
-    client: anthropic.Anthropic | None = None,
 ) -> JudgeOutput:
-    """Async variant for use inside async contexts (e.g. pydantic-evals)."""
-    if client is None:
-        client = anthropic.Anthropic()
-    if synthesis_model is None:
-        synthesis_model = "claude-sonnet-4-6"
+    """Async multi-stage judge. Works with any pydantic-ai supported model string.
 
-    loop = asyncio.get_event_loop()
-    ctx = await loop.run_in_executor(None, assess_context, config, client, model)
-    analyses = await _run_parallel(config, ctx, client, model)
-    return await loop.run_in_executor(
-        None, synthesize, ctx, analyses, client, synthesis_model
-    )
+    Args:
+        config: The agent configuration to evaluate.
+        model: Model for context + per-component analysis stages.
+               Format: "provider:model-id" e.g. "openai:gpt-4o-mini"
+        synthesis_model: Model for final synthesis. Defaults to Sonnet-class reasoning.
+    """
+    if synthesis_model is None:
+        # Default to a Sonnet-class model; try to match the provider from `model`
+        provider = model.split(":")[0] if ":" in model else "anthropic"
+        synthesis_model = {
+            "anthropic": "anthropic:claude-sonnet-4-6",
+            "openai":    "openai:gpt-4o",
+            "google-gla":"google-gla:gemini-2.0-flash",
+            "mistral":   "mistral:mistral-large-latest",
+            "groq":      "groq:llama-3.3-70b-versatile",
+        }.get(provider, "anthropic:claude-sonnet-4-6")
+
+    ctx = await _assess_context(config, model)
+    analyses = await _run_parallel(config, ctx, model)
+    return await _synthesize(ctx, analyses, synthesis_model)
+
+
+def judge(
+    config: AgentConfig,
+    *,
+    model: str = "anthropic:claude-haiku-4-5-20251001",
+    synthesis_model: str | None = None,
+) -> JudgeOutput:
+    """Synchronous wrapper around judge_async."""
+    return asyncio.run(judge_async(config, model=model, synthesis_model=synthesis_model))

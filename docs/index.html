@@ -357,33 +357,73 @@
           <div class="code-block">
             <div class="code-label">Install</div>
             <pre><code>pip install magnifica-humanitas
-# or development install:
-git clone https://github.com/infiniterik/magnifica-humanitas
+# development:
 pip install -e ".[dev]"</code></pre>
           </div>
           <div class="code-block">
-            <div class="code-label">Judge a config file</div>
-            <pre><code>export ANTHROPIC_API_KEY=sk-...
-mh-judge judge path/to/agent-config.yaml
+            <div class="code-label">Auto-detect from a project directory</div>
+            <pre><code># Claude Code, Codex, OpenCode,
+# or .agents/ — auto-detected
+mh-judge judge /path/to/project
 
-# Haiku for component analysis,
-# Sonnet for synthesis (defaults)</code></pre>
+# See which framework was found
+mh-judge loaders</code></pre>
           </div>
           <div class="code-block">
-            <div class="code-label">Run the eval suite</div>
-            <pre><code>export LOGFIRE_TOKEN=...   # optional
-mh-judge eval
-# Runs three calibration cases,
-# prints pydantic-evals report</code></pre>
+            <div class="code-label">Use any LLM provider</div>
+            <pre><code>export ANTHROPIC_API_KEY=sk-ant-...
+mh-judge judge /project
+
+export OPENAI_API_KEY=sk-...
+mh-judge judge /project \
+  --model openai:gpt-4o-mini
+
+export GOOGLE_API_KEY=...
+mh-judge judge /project \
+  --model google-gla:gemini-2.0-flash</code></pre>
           </div>
           <div class="code-block">
             <div class="code-label">Or from Claude Code</div>
             <pre><code># In a Claude Code session:
 /magnifica-judge
 
-# Paste your config when prompted.
-# The skill runs the full pipeline.</code></pre>
+# Pass a directory or paste config.
+# The skill loads and judges it.</code></pre>
           </div>
+        </div>
+
+        <div class="frameworks-table">
+          <h3>Supported frameworks</h3>
+          <div class="fw-grid">
+            <div class="fw-row fw-header">
+              <span>Framework</span><span>Detection</span><span>Key autonomy signal</span>
+            </div>
+            <div class="fw-row">
+              <span><strong>Claude Code</strong></span>
+              <span><code>.claude/</code></span>
+              <span><code>defaultMode: bypassPermissions</code> → Babel</span>
+            </div>
+            <div class="fw-row">
+              <span><strong>Codex CLI</strong></span>
+              <span><code>AGENTS.md</code> / <code>.codex/config.toml</code></span>
+              <span><code>approval_policy: never</code> → Babel; <code>untrusted</code> → Nehemiah</span>
+            </div>
+            <div class="fw-row">
+              <span><strong>OpenCode</strong></span>
+              <span><code>opencode.json</code></span>
+              <span><code>"permission": "allow"</code> globally → Babel signal</span>
+            </div>
+            <div class="fw-row">
+              <span><strong>.agents/ spec</strong></span>
+              <span><code>.agents/manifest.yaml</code></span>
+              <span>Mode autonomy level + policy deny rules</span>
+            </div>
+          </div>
+          <p class="fw-note">
+            The judge reads each framework's native files — no config translation required.
+            Works with any LLM provider via pydantic-ai:
+            Anthropic, OpenAI, Google, Mistral, Groq.
+          </p>
         </div>
 
         <div class="confession-yaml-snippet">

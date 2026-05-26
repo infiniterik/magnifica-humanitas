@@ -1,0 +1,25 @@
+specVersion: "1.0"
+
+defaults:
+  mode: standard
+  policy: cautious
+
+enabled:
+  modes:
+    - standard
+    - review-only
+  policies:
+    - cautious
+  skills:
+    - migration-review
+
+project:
+  name: "Example Project"
+  description: "A web application"
+  languages: ["python", "typescript"]
+  frameworks: ["fastapi", "react"]
+
+resolution:
+  enableUserOverlay: true
+  denyOverridesAllow: true
+  onConflict: warn

@@ -15,13 +15,27 @@ Invoke when asked to:
 - Evaluate whether an AI agent setup respects human agency and oversight
 - Understand where a configuration sits on the Babel–Nehemiah spectrum
 
+## Provider support
+
+The judge is provider-agnostic. The model string format is `provider:model-id`:
+- `anthropic:claude-haiku-4-5-20251001` (default for component analysis)
+- `openai:gpt-4o-mini`
+- `google-gla:gemini-2.0-flash`
+- `mistral:mistral-small-latest`
+- `groq:llama-3.3-70b-versatile`
+
+The synthesis stage defaults to a Sonnet-class model from the same provider.
+
 ## What you receive
 
-The user will provide one or more of:
-- A system prompt or agent instruction set
-- MCP server definitions (names, tool schemas, permission scopes)
-- Skill definitions (SKILL.md contents, folder structure, supporting files)
-- Subagent definitions
+The user may provide any of:
+- **A directory path** — the skill auto-detects the framework and loads natively:
+  - `.claude/` → Claude Code (settings.json, CLAUDE.md, skills/, hooks)
+  - `opencode.json` → OpenCode (permission rules, mcp, agent subagents)
+  - `AGENTS.md` / `codex.json` / `.codex/config.toml` → Codex CLI (approval_policy)
+  - `.agents/` → agents-folder spec (manifest, modes, policies, skills)
+- **A structured YAML/JSON file** — manual config in the judge's own format
+- **Pasted config text** — paste directly; the skill normalizes what it can
 
 Any component can include a `confession` field — see below.
 
@@ -121,11 +135,25 @@ The `examples/` folder contains three fully-worked calibration cases:
 - `nehemiah.yaml` — careful pair-programming assistant; all dimensions ≥4
 - `mixed.yaml` — CI/CD agent; good staging/production split, ungated rollback
 
-## Running the Eval Suite
+## Running the Judge
 
 ```bash
 pip install -e ".[dev]"
-export ANTHROPIC_API_KEY=sk-...
-export LOGFIRE_TOKEN=...          # optional; enables dashboard
+
+# Auto-detect framework from a project directory
+mh-judge judge /path/to/project
+
+# Use a specific provider
+mh-judge judge /path/to/project --model openai:gpt-4o-mini
+mh-judge judge /path/to/project --model google-gla:gemini-2.0-flash
+
+# Judge a manual config file
+mh-judge judge my-agent-config.yaml
+
+# List available loaders
+mh-judge loaders
+
+# Run eval suite
+export LOGFIRE_TOKEN=...          # optional
 mh-judge eval
 ```

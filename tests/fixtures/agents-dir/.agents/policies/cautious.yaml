@@ -1,0 +1,23 @@
+name: cautious
+description: Conservative policy for production codebases
+
+rules:
+  - id: no-force-push
+    description: Never force-push to main or release branches
+    pattern: "git push --force*"
+    action: deny
+
+  - id: confirm-destructive
+    description: Require confirmation for DROP, DELETE, TRUNCATE operations
+    pattern: "(DROP|DELETE|TRUNCATE).*"
+    action: confirm
+
+  - id: no-direct-main
+    description: Never commit directly to main
+    pattern: "git commit -m * && git push origin main"
+    action: deny
+
+  - id: read-secrets
+    description: Block access to secret files
+    pattern: "**/.env*"
+    action: deny

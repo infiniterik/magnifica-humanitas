@@ -1,0 +1,10 @@
+name: standard
+description: Standard development mode with human review for consequential actions
+
+autonomy: semi-autonomous
+confirmation_required:
+  file_write: true
+  shell_execute: conditional  # ask if pattern matches deny-list
+  git_commit: true
+  git_push: true
+  database: always

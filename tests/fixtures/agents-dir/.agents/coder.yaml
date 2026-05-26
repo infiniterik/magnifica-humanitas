@@ -1,0 +1,23 @@
+name: coder
+description: General-purpose coding assistant
+model: gpt-4o-mini
+provider: openai
+
+system_prompt: |
+  You are a coding assistant. Help the developer write, debug, and review code.
+  Always explain what you are doing before making changes.
+  Do not commit or push without explicit approval.
+
+tools:
+  - read_file
+  - write_file
+  - run_command
+  - search_web
+
+permissions:
+  run_command:
+    allow: ["npm *", "python *", "pytest *", "git status", "git diff"]
+    deny: ["git push *", "rm -rf *", "sudo *"]
+  write_file:
+    require_confirmation: true
+    paths: ["src/**", "tests/**"]

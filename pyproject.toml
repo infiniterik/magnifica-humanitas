@@ -4,13 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "magnifica-humanitas"
-version = "0.1.0"
+version = "0.2.0"
 description = "LLM-as-judge for coding agent configurations, grounded in Magnifica Humanitas (2026)"
 requires-python = ">=3.11"
 dependencies = [
-    "anthropic>=0.40.0",
-    "pydantic>=2.9.0",
-    "pydantic-ai>=0.0.20",
+    # pydantic-ai[all] includes Anthropic, OpenAI, Google, Mistral, Groq providers
+    "pydantic-ai[all]>=0.0.20",
     "pydantic-evals>=0.0.20",
     "logfire[anthropic]>=1.0.0",
     "pyyaml>=6.0",
@@ -23,6 +22,8 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
 ]
+# tomli is only needed on Python < 3.11 (3.11+ has tomllib built-in)
+toml = ["tomli>=2.0; python_version < '3.11'"]
 
 [project.scripts]
 mh-judge = "magnifica_humanitas.cli:app"
