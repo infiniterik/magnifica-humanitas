@@ -141,6 +141,13 @@ config:
         - create_pagerduty_incident
       confirmation_required: false
       triggers_page: true
+      confession:
+        acknowledgment: rollback_production is ungated and executes before the on-call can respond.
+        justification: >
+          During an active incident, a 60-second confirmation window causes more user-visible
+          harm than the rollback itself. The PagerDuty page is the human-in-the-loop mechanism;
+          on-call can override by re-deploying immediately. This is a deliberate incident-response
+          tradeoff, not negligence.
 
 expected_output:
   overall_paradigm: Mixed
@@ -330,6 +337,18 @@ expected_output:
       component: skills
       change: "Add an explicit exception path to deploy-runbook for urgent hotfixes outside the deploy window, with on-call approval required."
       rationale: "Subsidiarity: the deploy window restriction should not prevent urgent fixes — it should route them through an identifiable human approver."
+
+  confessions:
+    - component_type: subagent
+      component_name: auto-rollback
+      acknowledgment: rollback_production is ungated and executes before the on-call can respond.
+      verdict: partially_justified
+      verdict_rationale: >
+        The incident-response argument is credible — a confirmation window during active
+        degradation has real user cost. However, the justification does not address rollback
+        side effects (migration state, distributed transactions) that may themselves be
+        unrecoverable. A partially-justified verdict: the tradeoff is real and conscious,
+        but the confession does not fully account for the irreversibility risk.
 
   open_questions:
     - "Is rollback always safe in this system, or can it have irreversible side effects (database schema, distributed state)? This determines whether ungated rollback is acceptable."

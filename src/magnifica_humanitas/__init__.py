@@ -1,4 +1,4 @@
-from .judge import judge
-from .models import AgentConfig, JudgeOutput
+from .judge import judge, judge_async
+from .models import AgentConfig, Confession, JudgeOutput
 
-__all__ = ["judge", "AgentConfig", "JudgeOutput"]
+__all__ = ["judge", "judge_async", "AgentConfig", "Confession", "JudgeOutput"]

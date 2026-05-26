@@ -251,6 +251,8 @@ expected_output:
       change: "Add a checklist item in code-review for 'who else is affected by this change' — users, maintainers, downstream consumers of APIs."
       rationale: "Care for the hidden and the vulnerable — the encyclical's criterion extends to people not in the room."
 
+  confessions: []
+
   open_questions:
     - "Is the github-write-gated MCP's push_files scoped to a specific branch, or can it push to any branch including main?"
     - "Is there an audit log of confirmation responses, or only of the tool calls themselves?"
