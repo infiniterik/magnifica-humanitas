@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "magnifica-humanitas"
+version = "0.1.0"
+description = "LLM-as-judge for coding agent configurations, grounded in Magnifica Humanitas (2026)"
+requires-python = ">=3.11"
+dependencies = [
+    "anthropic>=0.40.0",
+    "pydantic>=2.9.0",
+    "pydantic-ai>=0.0.20",
+    "pydantic-evals>=0.0.20",
+    "logfire[anthropic]>=1.0.0",
+    "pyyaml>=6.0",
+    "rich>=13.0",
+    "typer>=0.12.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+]
+
+[project.scripts]
+mh-judge = "magnifica_humanitas.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/magnifica_humanitas"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
