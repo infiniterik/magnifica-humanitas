@@ -1,5 +1,17 @@
 # Magnifica Humanitas
 
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
+[![PyPI version](https://img.shields.io/pypi/v/magnifica-humanitas.svg)](https://pypi.org/project/magnifica-humanitas/)
+[![Built with pydantic-ai](https://img.shields.io/badge/built%20with-pydantic--ai-E92063.svg)](https://ai.pydantic.dev)
+[![Observability: Logfire](https://img.shields.io/badge/observability-logfire-FF6F00.svg)](https://logfire.pydantic.dev)
+[![Tests: pytest](https://img.shields.io/badge/tests-pytest-0A9EDC.svg)](https://docs.pytest.org)
+[![Docs: GitHub Pages](https://img.shields.io/badge/docs-GitHub%20Pages-222.svg)](https://infiniterik.github.io/magnifica-humanitas)
+[![LLM-as-Judge](https://img.shields.io/badge/LLM--as--Judge-Babel%20to%20Nehemiah-8A2BE2.svg)](#framework)
+[![Coding agents](https://img.shields.io/badge/scope-coding%20agents-2E8B57.svg)](#supported-frameworks)
+[![AI Ethics](https://img.shields.io/badge/topic-AI%20ethics%20%26%20anthropology-006400.svg)](#framework)
+[![Status: Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](#)
+
 An LLM-as-judge for coding agent configurations, grounded in the anthropological
 framework of *Magnifica Humanitas* (2026).
 

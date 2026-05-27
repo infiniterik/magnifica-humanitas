@@ -7,6 +7,50 @@ name = "magnifica-humanitas"
 version = "0.2.0"
 description = "LLM-as-judge for coding agent configurations, grounded in Magnifica Humanitas (2026)"
 requires-python = ">=3.11"
+license = { text = "MIT" }
+keywords = [
+    "llm",
+    "llm-as-judge",
+    "llm-evaluation",
+    "ai-safety",
+    "ai-ethics",
+    "ai-governance",
+    "responsible-ai",
+    "ai-alignment",
+    "coding-agent",
+    "coding-agents",
+    "agent-evaluation",
+    "agent-configuration",
+    "system-prompt-evaluation",
+    "claude-code",
+    "codex",
+    "opencode",
+    "mcp",
+    "skills",
+    "subagents",
+    "pydantic-ai",
+    "pydantic-evals",
+    "logfire",
+    "anthropology",
+    "magnifica-humanitas",
+    "babel",
+    "nehemiah",
+    "judge",
+    "evaluator",
+    "humanistic-ai",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Quality Assurance",
+    "Typing :: Typed",
+]
 dependencies = [
     # pydantic-ai[all] includes Anthropic, OpenAI, Google, Mistral, Groq providers
     "pydantic-ai[all]>=0.0.20",
